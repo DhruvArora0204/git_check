@@ -4,7 +4,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
 [![CLI Framework](https://img.shields.io/badge/CLI-Typer%20%26%20Rich-cyan.svg)](https://typer.tiangolo.com/)
 [![Integrated Scanners](https://img.shields.io/badge/Scanners-Semgrep%20%7C%20Gitleaks%20%7C%20OSV--Scanner%20%7C%20Trivy-orange.svg)](#integrated-security-scanners)
-[![AI Integration](https://img.shields.io/badge/AI-Gemini%20%7C%20OpenAI-purple.svg)](#ai-powered-remediation)
+[![AI Integration](https://img.shields.io/badge/AI-Gemini%20%7C%20OpenAI%20%7C%20Offline-purple.svg)](#ai-powered-remediation)
 
 **SecureCommit** is a lightweight, IDE-independent cybersecurity tool that automatically analyzes your staged changes whenever you execute `git commit`. It pinpoints security vulnerabilities, classifies them by severity, calculates a transparent 0–100 security score, and provides AI-generated explanations and remediation suggestions.
 
@@ -14,12 +14,14 @@
 
 ## 🌟 Key Features
 
-- **Automated Pre-Commit Protection**: Integrates directly into Git's `pre-commit` hook to scan staged changes before code enters your commit history.
-- **IDE-Independent**: Works transparently across **VS Code**, **IntelliJ IDEA**, **PyCharm**, or any terminal or Git GUI client.
-- **Multi-Engine Static & Secret Analysis**:
+- **Single-Command Setup**: Self-installing Python library that automatically downloads and configures all required scanner binaries cross-platform (Windows, Linux, macOS).
+- **Automated Pre-Commit Protection**: Integrates directly into Git's `pre-commit` hook to scan staged changes before code enters your repository history.
+- **IDE-Independent**: Works seamlessly across **VS Code**, **IntelliJ IDEA**, **PyCharm**, **Cursor**, command line, or any Git GUI client.
+- **Multi-Language Support**: Works out of the box for **Python**, **JavaScript / TypeScript (Node.js)**, container configs (`Dockerfile`), and dependency manifests.
+- **Multi-Engine Security Suite**:
   - **Semgrep**: Static Application Security Testing (SQLi, Command Injection, XSS, Insecure Deserialization, Cryptography).
   - **Gitleaks**: High-entropy secret and hardcoded credential detection (API keys, tokens, private keys).
-  - **OSV-Scanner**: Open-source dependency vulnerability auditing against Google's OSV database.
+  - **OSV-Scanner**: Open-source dependency vulnerability auditing against Google's OSV database (`package.json`, `requirements.txt`, etc.).
   - **Trivy**: Configuration, container (`Dockerfile`), and IaC security misconfigurations.
 - **Transparent Security Scoring**: Computes an intuitive 0–100 security score derived from strict severity weights:
   $$\text{Penalty} = (\text{Critical} \times 10) + (\text{High} \times 7) + (\text{Medium} \times 4) + (\text{Low} \times 1)$$
@@ -28,13 +30,13 @@
   - Generates plain-English vulnerability explanations.
   - Explains why the pattern is dangerous and details realistic exploit scenarios.
   - Suggests drop-in secure code replacements.
-  - Supports **Google Gemini**, **OpenAI**, and an intelligent **Contextual Offline Engine** (no API key required).
+  - Supports **Google Gemini**, **OpenAI**, and an intelligent **Contextual Offline Engine** (works with zero API keys).
   - Automatic credential redaction ensures sensitive secrets are never sent to external LLMs.
 - **Developer Commitment Controls**:
   - Review AI fixes and selectively approve patches.
   - Commit anyway without fixing.
   - Abort commit to investigate in your IDE while preserving your staged changes.
-  - Clean scans pass seamlessly with no unnecessary friction.
+  - Clean scans pass seamlessly with zero friction.
 
 ---
 
@@ -45,11 +47,12 @@ securecommit/
 │
 ├── securecommit/
 │   ├── __init__.py
-│   ├── main.py                     # CLI entrypoint
+│   ├── __main__.py                 # Allows 'python -m securecommit' execution
+│   ├── main.py                     # CLI application entrypoint
 │   ├── cli.py                      # Typer & Rich user interface
 │   │
 │   ├── scanner/                    # Multi-engine scanner suite
-│   │   ├── analyzer.py             # Scanner coordinator & finding deduplication
+│   │   ├── analyzer.py             # Scanner coordinator & auto-healing tool discovery
 │   │   ├── semgrep.py              # Semgrep SAST integration
 │   │   ├── secrets.py              # Gitleaks secret detection & redaction
 │   │   ├── dependencies.py         # OSV-Scanner dependency analysis
@@ -71,9 +74,10 @@ securecommit/
 │   │   └── default_rules.yaml      # Built-in custom Semgrep rules (offline-capable)
 │   │
 │   └── utils/
-│       └── config.py               # Pydantic models & path discovery
+│       ├── config.py               # Pydantic models & path discovery
+│       └── installer.py            # Automated cross-platform scanner binary installer
 │
-├── tests/                          # 31 unit and integration test suites
+├── tests/                          # 32 unit and integration test suites
 │   ├── fixtures/                   # Intentionally vulnerable test files
 │   ├── test_ai_remediation.py
 │   ├── test_analyzer.py
@@ -83,85 +87,87 @@ securecommit/
 │   └── test_severity.py
 │
 ├── pyproject.toml
-├── requirements.txt
+├── setup.py                        # Automated package build & tool configuration
+├── setup_securecommit.ps1          # Windows PowerShell quick-setup helper
 └── README.md
 ```
 
 ---
 
-## 🚀 Installation & Setup
+## 🚀 Quick Start (Single Pip Command)
 
-### 1. Prerequisites
-- Python 3.10 or higher.
-- Git.
+SecureCommit is designed to be completely self-contained. You do **not** need to manually install package managers (like `winget` or `brew`) or configure binary `PATH` environment variables.
 
-### 2. Install Integrated Scanner Binaries
-SecureCommit coordinates with established security scanners:
+### 1. Install SecureCommit via Pip
+
+Run this single command in your terminal:
 
 ```bash
-# Install Semgrep (Python SAST)
-pip install semgrep
-
-# Windows (winget)
-winget install Gitleaks.Gitleaks
-winget install Google.OSVScanner
-winget install AquaSecurity.Trivy
-
-# macOS (Homebrew)
-brew install gitleaks osv-scanner trivy
-
-# Linux (Debian / Ubuntu)
-# Follow official documentation for Gitleaks, OSV-Scanner, and Trivy
+pip install git+https://github.com/DhruvArora0204/git_check.git
 ```
 
-Verify your scanners anytime using:
+This installs `securecommit` along with `semgrep` and Python dependencies.
+
+### 2. Activate in Your Git Repository
+
+Navigate to any Git project (Python, Node.js/JavaScript, etc.) and run:
+
 ```bash
-securecommit check-tools
+python -m securecommit install-hook
 ```
+*(Or simply `securecommit install-hook` if your Python Scripts folder is in your `PATH`)*
 
-### 3. Install SecureCommit
-Install directly via pip:
-```bash
-pip install securecommit
-```
-Or for local development:
-```bash
-git clone https://github.com/your-org/securecommit.git
-cd securecommit
-pip install -e .
-```
+> **Automatic Binary Management**: On running `install-hook`, SecureCommit automatically verifies and downloads any missing standalone scanner binaries (**Gitleaks**, **OSV-Scanner**, **Trivy**) for your operating system into `~/.securecommit/bin/` and registers them.
 
 ---
 
-## ⚙️ Hook Setup in Your Git Project
+## 🔍 Verify Installation
 
-To activate SecureCommit in any Git repository:
+Verify the status of all 4 integrated security scanners:
+
 ```bash
-cd /path/to/your/git/repo
-securecommit install-hook
+python -m securecommit check-tools
 ```
 
-To remove the pre-commit hook:
+Output:
+```text
+SECURECOMMIT
+AI-Powered Pre-Commit Security Engine
+
+Checking integrated scanner tools availability...
+
+                             Scanner Tools Status                              
+┌─────────────┬─────────────────────────┬───────────┬─────────────────────────┐
+│ Scanner     │ Purpose                 │ Status    │ Location / Remediation  │
+├─────────────┼─────────────────────────┼───────────┼─────────────────────────┤
+│ Semgrep     │ Static Code Analysis    │ AVAILABLE │ ...\semgrep.exe         │
+│ Gitleaks    │ Secret & Credential     │ AVAILABLE │ ...\.securecommit\bin   │
+│ OSV-Scanner │ Dependency Scanner      │ AVAILABLE │ ...\.securecommit\bin   │
+│ Trivy       │ Config & Container Sec  │ AVAILABLE │ ...\.securecommit\bin   │
+└─────────────┴─────────────────────────┴───────────┴─────────────────────────┘
+```
+
+If you ever wish to explicitly download or re-verify all tools:
 ```bash
-securecommit uninstall-hook
+python -m securecommit setup
 ```
 
 ---
 
 ## 💻 Developer Workflow
 
-1. **Write code** in your preferred IDE (VS Code, IntelliJ, PyCharm, Vim, etc.).
-2. **Stage your files**:
+1. **Write code** in your preferred IDE (VS Code, IntelliJ, PyCharm, Cursor, etc.).
+2. **Stage your changes**:
    ```bash
-   git add database.py config.py
+   git add server.py config.json
    ```
 3. **Commit your changes**:
    ```bash
-   git commit -m "feat: user authentication"
+   git commit -m "feat: database connector"
    ```
-4. **SecureCommit executes automatically**:
-   - If clean: displays a green confirmation and the commit proceeds smoothly.
-   - If vulnerabilities are found: ranks findings by severity, displays the security score, and presents interactive options.
+4. **SecureCommit runs automatically**:
+   - **Clean Scan**: Displays a green confirmation and the commit proceeds seamlessly.
+   - **Vulnerabilities Found**: Ranks findings by severity, displays the security score, and prompts for your decision:
 
 ```text
 SECURECOMMIT
@@ -212,44 +218,45 @@ Select an option (1-3): 1
 
 ## 🤖 AI Remediation Configuration (Optional)
 
-SecureCommit works **out of the box** with its built-in contextual security engine without requiring an API key.
+SecureCommit includes a **built-in Contextual Offline Remediation Engine** that explains vulnerabilities and generates secure fixes with **zero configuration or API keys required**.
 
-To enable live LLM synthesis via Gemini or OpenAI, set the respective environment variable:
+If you wish to use live cloud LLMs (Gemini or OpenAI), simply set the key in your `.env` file or environment:
 
 ```bash
-# For Google Gemini
-export GEMINI_API_KEY="AIzaSy..."
-
-# For OpenAI
-export OPENAI_API_KEY="sk-..."
+# In your project's .env file or environment variables:
+GEMINI_API_KEY="AIzaSy..."
+# or
+OPENAI_API_KEY="sk-..."
 ```
 
 ---
 
 ## 🛠️ CLI Command Reference
 
+All commands can be run as `securecommit <cmd>` or `python -m securecommit <cmd>`:
+
 | Command | Description |
 |---|---|
-| `securecommit scan [paths...]` | Scan specified files or directories and display security score. |
-| `securecommit scan --explain-score` | Include transparent scoring breakdown in output. |
-| `securecommit scan-staged` | Scan only currently staged Git files without committing. |
-| `securecommit fix [paths...]` | Interactively step through AI fixes and selectively apply approved patches. |
-| `securecommit install-hook` | Install the pre-commit hook into `.git/hooks/pre-commit`. |
-| `securecommit uninstall-hook` | Remove the pre-commit hook and restore any previous hook backup. |
-| `securecommit check-tools` | Audit the availability and installation paths of the 4 scanner engines. |
+| `securecommit install-hook` | Auto-prepares scanner binaries and installs Git pre-commit hook. |
+| `securecommit setup` | Explicitly downloads and sets up all external scanner binaries. |
+| `securecommit check-tools` | Audits the availability and file paths of all 4 scanner engines. |
+| `securecommit scan [paths...]` | Manually scans specified files or directories and displays security score. |
+| `securecommit scan-staged` | Scans only currently staged Git files without committing. |
+| `securecommit fix [paths...]` | Interactively reviews AI fixes and selectively applies approved patches. |
+| `securecommit uninstall-hook` | Removes the pre-commit hook and restores any previous hook backup. |
 
 ---
 
 ## 🧪 Running Tests
 
-SecureCommit comes with an extensive 31-test suite covering scanner execution, severity normalization, scoring algorithms, pre-commit hook workflows, AI prompt sanitization, and patch application:
+SecureCommit comes with an extensive 32-test suite covering scanner execution, severity normalization, scoring algorithms, pre-commit hook workflows, AI prompt sanitization, auto-installation, and patch application:
 
 ```bash
-python -m unittest discover -s tests -v
+python -m pytest
 ```
 
 ---
 
 ## 📄 License
 
-MIT License. Built for security-conscious development teams.
+MIT License. Built for security-conscious developers and teams.
