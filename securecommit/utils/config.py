@@ -136,6 +136,7 @@ def get_augmented_env() -> Dict[str, str]:
                 pass
 
         candidate_paths = [
+            os.path.join(user_profile, ".securecommit", "bin"),
             os.path.join(user_appdata, "Python", "Python314", "Scripts"),
             os.path.join(user_appdata, "Python", "Python313", "Scripts"),
             os.path.join(user_appdata, "Python", "Python312", "Scripts"),
@@ -152,6 +153,7 @@ def get_augmented_env() -> Dict[str, str]:
     else:
         home = os.path.expanduser("~")
         candidate_paths = [
+            os.path.join(home, ".securecommit", "bin"),
             os.path.join(home, ".local", "bin"),
             "/usr/local/bin",
             "/opt/homebrew/bin",

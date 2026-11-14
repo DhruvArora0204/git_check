@@ -22,11 +22,27 @@ logger = logging.getLogger(__name__)
 class SecurityAnalyzer:
     """Coordinates all integrated scanners and compiles a normalized security report."""
 
-    def __init__(self, custom_rule_path: Optional[str] = None):
+    def __init__(self, custom_rule_path: Optional[str] = None, auto_install_missing: bool = True):
         self.semgrep_scanner = SemgrepScanner(custom_rule_path=custom_rule_path)
         self.secret_scanner = SecretScanner()
         self.dependency_scanner = DependencyScanner()
         self.config_scanner = ConfigScanner()
+
+        # If any standalone binary is missing, attempt automatic self-healing download
+        if auto_install_missing and not (
+            self.secret_scanner.is_available()
+            and self.dependency_scanner.is_available()
+            and self.config_scanner.is_available()
+        ):
+            try:
+                from securecommit.utils.installer import ensure_all_tools
+                ensure_all_tools(verbose=False)
+                # Re-query binaries in case any were just downloaded
+                self.secret_scanner = SecretScanner()
+                self.dependency_scanner = DependencyScanner()
+                self.config_scanner = ConfigScanner()
+            except Exception as e:
+                logger.debug(f"Auto-install tools check failed: {e}")
 
     def scan_files(self, target_files: List[str]) -> ScanReport:
         """

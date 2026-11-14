@@ -206,9 +206,31 @@ def scan(
 
 
 @app.command()
-def install_hook(repo: str = typer.Option(".", "--repo", "-r", help="Git repository root path")):
+def setup():
+    """Download and configure all required external security scanner binaries."""
+    render_banner()
+    console.print("[bold cyan]Checking and preparing all integrated scanner tools...[/bold cyan]\n")
+    from securecommit.utils.installer import ensure_all_tools
+    results = ensure_all_tools(verbose=True, log_fn=lambda msg: console.print(f"  {msg}"))
+    console.print()
+    if all(results.values()):
+        console.print("[bold green][✓] All scanner tools are installed and ready to use![/bold green]")
+    else:
+        console.print("[yellow][!] Some tools could not be installed automatically. Check your network connection.[/yellow]")
+
+
+@app.command()
+def install_hook(
+    repo: str = typer.Option(".", "--repo", "-r", help="Git repository root path"),
+    auto_install_tools: bool = typer.Option(True, help="Automatically download missing scanner binaries"),
+):
     """Install SecureCommit Git pre-commit hook into a repository."""
     render_banner()
+    if auto_install_tools:
+        from securecommit.utils.installer import ensure_all_tools
+        console.print("[bold cyan]Verifying scanner tools for SecureCommit...[/bold cyan]")
+        ensure_all_tools(verbose=True, log_fn=lambda msg: console.print(f"  {msg}"))
+        console.print()
     from securecommit.git.hooks import install_hook as do_install
     success = do_install(repo)
     if not success:
@@ -268,12 +290,18 @@ def run_hook_command():
 
 
 @app.command()
-def check_tools():
+def check_tools(
+    fix: bool = typer.Option(True, "--fix/--no-fix", help="Automatically download missing scanner binaries"),
+):
     """Verify installation and status of integrated security tools."""
     render_banner()
+    if fix:
+        from securecommit.utils.installer import ensure_all_tools
+        ensure_all_tools(verbose=False)
+
     console.print("[bold]Checking integrated scanner tools availability...[/bold]\n")
 
-    analyzer = SecurityAnalyzer()
+    analyzer = SecurityAnalyzer(auto_install_missing=False)
     table = Table(title="Scanner Tools Status")
     table.add_column("Scanner", style="bold")
     table.add_column("Purpose")
@@ -282,9 +310,9 @@ def check_tools():
 
     tools = [
         ("Semgrep", "Static Code Analysis (SAST)", analyzer.semgrep_scanner.is_available(), analyzer.semgrep_scanner.executable or "Install: pip install semgrep"),
-        ("Gitleaks", "Secret & Credential Detection", analyzer.secret_scanner.is_available(), analyzer.secret_scanner.executable or "Install: winget install Gitleaks.Gitleaks"),
-        ("OSV-Scanner", "Dependency Vulnerability Scanner", analyzer.dependency_scanner.is_available(), analyzer.dependency_scanner.executable or "Install: winget install Google.OSVScanner"),
-        ("Trivy", "Config & Container Security", analyzer.config_scanner.is_available(), analyzer.config_scanner.executable or "Install: winget install AquaSecurity.Trivy"),
+        ("Gitleaks", "Secret & Credential Detection", analyzer.secret_scanner.is_available(), analyzer.secret_scanner.executable or "Auto-install: python -m securecommit setup"),
+        ("OSV-Scanner", "Dependency Vulnerability Scanner", analyzer.dependency_scanner.is_available(), analyzer.dependency_scanner.executable or "Auto-install: python -m securecommit setup"),
+        ("Trivy", "Config & Container Security", analyzer.config_scanner.is_available(), analyzer.config_scanner.executable or "Auto-install: python -m securecommit setup"),
     ]
 
     for name, purpose, is_avail, loc in tools:

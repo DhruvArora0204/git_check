@@ -60,6 +60,8 @@ def install_hook(repo_path: str = ".") -> bool:
 
     if hook_file.exists():
         backup_file = hooks_dir / "pre-commit.securecommit.bak"
+        if backup_file.exists():
+            backup_file.unlink()
         hook_file.rename(backup_file)
         console.print(f"[yellow][!] Existing pre-commit hook backed up to {backup_file.name}[/yellow]")
 
