@@ -15,12 +15,37 @@ from securecommit.utils.config import VulnerabilityCategory, VulnerabilityFindin
 logger = logging.getLogger(__name__)
 
 
+def _load_env_file():
+    """Load keys from .env in current directory, parent git root, or ~/.securecommit.env."""
+    candidate_paths = [
+        Path.cwd() / ".env",
+        Path.cwd().parent / ".env",
+        Path.home() / ".securecommit.env",
+    ]
+    for candidate in candidate_paths:
+        if candidate.exists() and candidate.is_file():
+            try:
+                for line in candidate.read_text(encoding="utf-8").splitlines():
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        k, v = line.split("=", 1)
+                        k = k.strip()
+                        v = v.strip().strip("'\"")
+                        if k not in os.environ:
+                            os.environ[k] = v
+            except Exception:
+                pass
+
+
 class AIRemediationEngine:
     """Manages AI-driven vulnerability remediation generation and safe patch application."""
 
     def __init__(self):
+        _load_env_file()
         self.gemini_api_key = os.environ.get("GEMINI_API_KEY")
         self.openai_api_key = os.environ.get("OPENAI_API_KEY")
+        self.gemini_model = os.environ.get("GEMINI_MODEL", "gemini-1.5-flash")
+        self.openai_model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
 
     def generate_advice(self, finding: VulnerabilityFinding) -> RemediationAdvice:
         """
@@ -112,7 +137,7 @@ class AIRemediationEngine:
 
     def _call_gemini(self, finding: VulnerabilityFinding) -> Optional[RemediationAdvice]:
         """Query Google Gemini API."""
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={self.gemini_api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.gemini_model}:generateContent?key={self.gemini_api_key}"
         prompt = build_remediation_prompt(finding)
 
         payload = {
@@ -159,7 +184,7 @@ class AIRemediationEngine:
         prompt = build_remediation_prompt(finding)
 
         payload = {
-            "model": "gpt-4o-mini",
+            "model": self.openai_model,
             "messages": [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": prompt},

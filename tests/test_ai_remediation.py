@@ -119,6 +119,22 @@ class TestAIRemediation(unittest.TestCase):
             # File content remains exact
             self.assertEqual(test_file.read_text(encoding="utf-8"), original_content)
 
+    def test_env_file_loading(self):
+        import os
+        from securecommit.ai.remediation import _load_env_file
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            env_file = Path(tmp_dir) / ".env"
+            env_file.write_text("TEST_SECURECOMMIT_KEY=dummy_value_123\n", encoding="utf-8")
+            # Temporarily change dir to tmp_dir
+            orig_cwd = os.getcwd()
+            try:
+                os.chdir(tmp_dir)
+                _load_env_file()
+                self.assertEqual(os.environ.get("TEST_SECURECOMMIT_KEY"), "dummy_value_123")
+            finally:
+                os.chdir(orig_cwd)
+                os.environ.pop("TEST_SECURECOMMIT_KEY", None)
+
 
 if __name__ == "__main__":
     unittest.main()

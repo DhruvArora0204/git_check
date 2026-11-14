@@ -94,6 +94,47 @@ def get_augmented_env() -> Dict[str, str]:
         local_appdata = os.environ.get("LOCALAPPDATA", "")
         user_profile = os.environ.get("USERPROFILE", "")
 
+        # 1. Read permanent user PATH directly from Windows Registry
+        try:
+            import winreg
+            with winreg.OpenKey(winreg.HKEY_CURRENT_USER, r"Environment") as key:
+                reg_path, _ = winreg.QueryValueEx(key, "Path")
+                for entry in reg_path.split(";"):
+                    expanded = os.path.expandvars(entry.strip())
+                    if expanded and os.path.isdir(expanded) and expanded not in additional_paths:
+                        additional_paths.append(expanded)
+        except Exception:
+            pass
+
+        # 2. Python user scripts directories (dynamic + static fallback)
+        try:
+            import site
+            user_site = site.getusersitepackages()
+            scripts_dir = os.path.join(os.path.dirname(user_site), "Scripts")
+            if os.path.isdir(scripts_dir) and scripts_dir not in additional_paths:
+                additional_paths.append(scripts_dir)
+            direct_scripts = os.path.join(user_site, "Scripts")
+            if os.path.isdir(direct_scripts) and direct_scripts not in additional_paths:
+                additional_paths.append(direct_scripts)
+        except Exception:
+            pass
+
+        # Python install scripts directory
+        py_scripts = os.path.join(os.path.dirname(sys.executable), "Scripts")
+        if os.path.isdir(py_scripts) and py_scripts not in additional_paths:
+            additional_paths.append(py_scripts)
+
+        # 3. Known WinGet Package folders containing executables
+        winget_pkg_root = os.path.join(local_appdata, "Microsoft", "WinGet", "Packages")
+        if os.path.isdir(winget_pkg_root):
+            try:
+                for root, dirs, files in os.walk(winget_pkg_root):
+                    if any(f.lower().endswith(".exe") for f in files):
+                        if root not in additional_paths:
+                            additional_paths.append(root)
+            except Exception:
+                pass
+
         candidate_paths = [
             os.path.join(user_appdata, "Python", "Python314", "Scripts"),
             os.path.join(user_appdata, "Python", "Python313", "Scripts"),
@@ -101,11 +142,12 @@ def get_augmented_env() -> Dict[str, str]:
             os.path.join(user_appdata, "Python", "Python311", "Scripts"),
             os.path.join(local_appdata, "Microsoft", "WinGet", "Links"),
             os.path.join(local_appdata, "Microsoft", "WindowsApps"),
+            os.path.join(user_profile, ".local", "osv-scanner"),
             os.path.join(user_profile, ".cargo", "bin"),
             os.path.join(user_profile, "go", "bin"),
         ]
         for cp in candidate_paths:
-            if os.path.isdir(cp) and cp not in current_path:
+            if os.path.isdir(cp) and cp not in additional_paths:
                 additional_paths.append(cp)
     else:
         home = os.path.expanduser("~")
@@ -116,7 +158,7 @@ def get_augmented_env() -> Dict[str, str]:
             os.path.join(home, "go", "bin"),
         ]
         for cp in candidate_paths:
-            if os.path.isdir(cp) and cp not in current_path:
+            if os.path.isdir(cp) and cp not in additional_paths:
                 additional_paths.append(cp)
 
     if additional_paths:
