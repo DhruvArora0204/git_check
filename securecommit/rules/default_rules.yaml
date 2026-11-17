@@ -113,3 +113,22 @@ rules:
         - python
     severity: ERROR
     languages: [python]
+
+  - id: python-insecure-debug-mode
+    patterns:
+      - pattern-either:
+          - pattern: app.run(..., debug=True, ...)
+          - pattern: $APP.run(..., debug=True, ...)
+          - pattern: DEBUG = True
+    message: "Insecure Debug Mode detected: running applications with debug mode enabled can expose interactive execution consoles, traceback internals, and sensitive environment keys."
+    metadata:
+      cwe: "CWE-489: Active Debug Code"
+      owasp: "A05:2021 - Security Misconfiguration"
+      category: "security"
+      technology:
+        - python
+        - flask
+        - django
+    severity: INFO
+    languages: [python]
+
